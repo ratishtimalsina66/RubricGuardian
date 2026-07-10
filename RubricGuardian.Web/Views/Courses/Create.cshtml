@@ -1,0 +1,22 @@
+@model CourseCreateViewModel
+@{ ViewData["Title"] = "Add course"; }
+
+<div class="card card-white auth-card p-4">
+    <h1 class="h4 mb-3">Add a course</h1>
+    <form method="post" action="/courses/create">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
+        <div class="mb-3">
+            <label asp-for="CourseName" class="form-label">Course name</label>
+            <input asp-for="CourseName" class="form-control" placeholder="e.g. CSET 3250 - Client-Side Scripting" />
+            <span asp-validation-for="CourseName" class="text-danger small"></span>
+        </div>
+        <div class="mb-4">
+            <label asp-for="Semester" class="form-label">Semester</label>
+            <input asp-for="Semester" class="form-control" placeholder="e.g. Fall 2026" />
+            <span asp-validation-for="Semester" class="text-danger small"></span>
+        </div>
+        <button class="btn btn-primary" type="submit">Save course</button>
+        <a class="btn btn-outline-secondary" href="/courses">Cancel</a>
+    </form>
+</div>

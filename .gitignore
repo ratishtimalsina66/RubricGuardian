@@ -1,0 +1,19 @@
+# Secrets - never commit
+.env
+appsettings.Development.json
+
+# Python
+ai-service/.venv/
+__pycache__/
+*.pyc
+
+# .NET
+bin/
+obj/
+*.user
+
+# App data - user uploads
+RubricGuardian.Web/App_Data/
+
+# OS junk
+.DS_Store

@@ -1,0 +1,41 @@
+@model AssignmentCreateViewModel
+@{ ViewData["Title"] = "New assignment"; }
+
+<div class="card card-white auth-card p-4">
+    <h1 class="h4 mb-3">New assignment</h1>
+
+    @if (!Model.Courses.Any())
+    {
+        <div class="alert alert-warning">You need a course first. <a href="/courses/create">Add one</a>.</div>
+    }
+    else
+    {
+        <form method="post" action="/assignments/create">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger small mb-2"></div>
+            <div class="mb-3">
+                <label asp-for="CourseId" class="form-label">Course</label>
+                <select asp-for="CourseId" class="form-select"
+                        asp-items="@(new SelectList(Model.Courses, "CourseId", "CourseName"))">
+                    <option value="">Choose a course…</option>
+                </select>
+                <span asp-validation-for="CourseId" class="text-danger small"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Title" class="form-label">Title</label>
+                <input asp-for="Title" class="form-control" placeholder="e.g. Project 2: Interactive Travel Journal" />
+                <span asp-validation-for="Title" class="text-danger small"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="DueDate" class="form-label">Due date</label>
+                <input asp-for="DueDate" class="form-control" type="date" />
+            </div>
+            <div class="mb-4">
+                <label asp-for="Description" class="form-label">Description <span class="text-muted">(optional)</span></label>
+                <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+            </div>
+            <button class="btn btn-primary" type="submit">Create assignment</button>
+            <a class="btn btn-outline-secondary" href="/dashboard">Cancel</a>
+        </form>
+    }
+</div>

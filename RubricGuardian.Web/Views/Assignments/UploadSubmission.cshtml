@@ -1,0 +1,33 @@
+@model Assignment
+@{ ViewData["Title"] = "Check submission"; }
+
+<div class="card card-white auth-card p-4">
+    <h1 class="h4 mb-1">Check my submission</h1>
+    <p class="text-muted small mb-4">@Model.Title · @Model.Course?.CourseName</p>
+
+    @if (!Model.Requirements.Any())
+    {
+        <div class="alert alert-warning">
+            No requirements exist yet. <a href="/assignments/@Model.AssignmentId/upload-instructions">Upload the instructions or rubric first</a>.
+        </div>
+    }
+    else
+    {
+        <p class="text-muted small">
+            This will be saved as <strong>version @(Model.Submissions.Count + 1)</strong> and checked
+            against all @Model.Requirements.Count requirement(s). Earlier versions stay available for comparison.
+        </p>
+
+        <form method="post" action="/assignments/@Model.AssignmentId/upload-submission" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+            <div class="mb-4">
+                <label class="form-label">Submission file (PDF, DOCX, TXT, or MD — max 20 MB)</label>
+                <input class="form-control" type="file" name="file" accept=".pdf,.docx,.txt,.md" required />
+            </div>
+            <button class="btn btn-primary" type="submit">Upload and run check</button>
+            <a class="btn btn-outline-secondary" href="/assignments/@Model.AssignmentId">Cancel</a>
+        </form>
+        <p class="text-muted small mt-3 mb-0">Checking usually takes 15–60 seconds depending on document length.</p>
+    }
+</div>

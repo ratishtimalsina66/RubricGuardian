@@ -1,0 +1,103 @@
+@model AssignmentDetailViewModel
+@{ ViewData["Title"] = Model.Assignment.Title; }
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item text-muted">@Model.Assignment.Course?.CourseName</li>
+        <li class="breadcrumb-item active">@Model.Assignment.Title</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">@Model.Assignment.Title</h1>
+        <p class="text-muted mb-0">
+            Due @(Model.Assignment.DueDate?.ToString("MMMM d, yyyy") ?? "date not set")
+            @if (Model.LatestReadiness is double r) { <span> · latest readiness <strong>@r%</strong></span> }
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="/assignments/@Model.Assignment.AssignmentId/upload-instructions">Upload instructions/rubric</a>
+        <a class="btn btn-primary" href="/assignments/@Model.Assignment.AssignmentId/upload-submission">Check my submission</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Assignment.Description))
+{
+    <div class="card p-3 mb-4"><p class="mb-0">@Model.Assignment.Description</p></div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <h2 class="h5 section-title">Requirements (@Model.Requirements.Count)</h2>
+        @if (!Model.Requirements.Any())
+        {
+            <div class="card p-4 text-muted">
+                No requirements yet. Upload the assignment instructions or rubric and RubricGuardian will
+                extract each requirement — nothing is invented, everything traces back to the document.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-rg mb-0">
+                    <thead><tr><th>Requirement</th><th>Category</th><th>Points</th><th>Required</th></tr></thead>
+                    <tbody>
+                    @foreach (var req in Model.Requirements)
+                    {
+                        <tr>
+                            <td>@req.RequirementText</td>
+                            <td class="text-muted">@req.Category</td>
+                            <td>@(req.Points?.ToString("0.#") ?? "—")</td>
+                            <td>@(req.IsRequired ? "Yes" : "Optional")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="col-lg-5">
+        <h2 class="h5 section-title">Submission versions</h2>
+        @if (!Model.Submissions.Any())
+        {
+            <div class="card p-4 text-muted mb-4">No submissions checked yet.</div>
+        }
+        else
+        {
+            <div class="card p-3 mb-4">
+                <ul class="list-unstyled mb-0">
+                @foreach (var s in Model.Submissions)
+                {
+                    <li class="d-flex justify-content-between border-bottom py-2">
+                        <span>Version @s.VersionNumber <span class="text-muted small">· @s.UploadedAt.ToString("MMM d, h:mm tt")</span></span>
+                        <a class="small" href="/assignments/@Model.Assignment.AssignmentId/evaluation?version=@s.VersionNumber">View report</a>
+                    </li>
+                }
+                </ul>
+            </div>
+        }
+
+        <h2 class="h5 section-title">Documents</h2>
+        @if (!Model.Documents.Any())
+        {
+            <div class="card p-4 text-muted">Nothing uploaded yet.</div>
+        }
+        else
+        {
+            <div class="card p-3">
+                <ul class="list-unstyled mb-0">
+                @foreach (var d in Model.Documents)
+                {
+                    <li class="d-flex justify-content-between border-bottom py-2">
+                        <span class="text-truncate me-2">@d.FileName</span>
+                        <span class="badge text-bg-light">@d.DocumentType</span>
+                    </li>
+                }
+                </ul>
+            </div>
+        }
+    </div>
+</div>

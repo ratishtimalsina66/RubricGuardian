@@ -1,0 +1,146 @@
+@model EvaluationDashboardViewModel
+@{
+    ViewData["Title"] = "Readiness report";
+    var fixList = Model.Rows
+        .Where(r => r.Evaluation != null && r.Evaluation.Status != EvaluationStatus.Complete)
+        .ToList();
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="/assignments/@Model.Assignment.AssignmentId">@Model.Assignment.Title</a></li>
+        <li class="breadcrumb-item active">Readiness report</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h1 class="h3 mb-0">Assignment readiness</h1>
+    <div class="d-flex gap-2 align-items-center">
+        @if (Model.AllVersions.Count > 1)
+        {
+            <form method="get" action="/assignments/@Model.Assignment.AssignmentId/evaluation" class="d-flex gap-2 align-items-center m-0">
+                <label class="small text-muted" for="version">Version</label>
+                <select id="version" name="version" class="form-select form-select-sm" onchange="this.form.submit()">
+                    @foreach (var v in Model.AllVersions)
+                    {
+                        <option value="@v.VersionNumber" selected="@(v.SubmissionId == Model.Submission?.SubmissionId)">
+                            v@(v.VersionNumber) — @v.UploadedAt.ToString("MMM d, h:mm tt")
+                        </option>
+                    }
+                </select>
+            </form>
+        }
+        @if (Model.Submission is not null)
+        {
+            <form method="post" action="/assignments/@Model.Assignment.AssignmentId/evaluation/rerun" class="m-0">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="submissionId" value="@Model.Submission.SubmissionId" />
+                <button class="btn btn-outline-secondary btn-sm" type="submit">Re-run check</button>
+            </form>
+        }
+        <a class="btn btn-primary btn-sm" href="/assignments/@Model.Assignment.AssignmentId/upload-submission">Upload revised version</a>
+    </div>
+</div>
+
+@if (Model.Submission is null)
+{
+    <div class="card p-4 text-muted">
+        No submission has been checked yet.
+        <a href="/assignments/@Model.Assignment.AssignmentId/upload-submission">Upload your work</a> to generate a readiness report.
+    </div>
+}
+else
+{
+    <div class="row g-3 mb-4 align-items-stretch">
+        <div class="col-12 col-md-4 col-lg-3">
+            <div class="card p-3 h-100 d-flex flex-column align-items-center justify-content-center">
+                <div class="readiness-ring" style="--pct: @Model.ReadinessPercent;">
+                    <div>@Model.ReadinessPercent%</div>
+                </div>
+                <div class="stat-label mt-2">Overall readiness</div>
+                <div class="text-muted small">Version @Model.Submission.VersionNumber · required items only</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-8 col-lg-9">
+            <div class="row g-3 h-100">
+                <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100"><div class="stat-value text-success">@Model.CompleteCount</div><div class="stat-label">Complete</div></div></div>
+                <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100"><div class="stat-value" style="color:#b45309">@Model.PartialCount</div><div class="stat-label">Partial</div></div></div>
+                <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100"><div class="stat-value text-danger">@Model.MissingCount</div><div class="stat-label">Missing</div></div></div>
+                <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100"><div class="stat-value text-secondary">@Model.UnclearCount</div><div class="stat-label">Unclear</div></div></div>
+            </div>
+        </div>
+    </div>
+
+    if (fixList.Any())
+    {
+        <h2 class="h5 section-title">Fix checklist <span class="text-muted small fw-normal">(highest risk first)</span></h2>
+        <div class="card p-3 mb-4">
+            <ol class="mb-0">
+            @foreach (var row in fixList)
+            {
+                <li class="mb-2">
+                    <span class="risk-@row.Evaluation!.RiskLevel">[@row.Evaluation.RiskLevel risk]</span>
+                    <strong>@row.Requirement.RequirementText</strong>
+                    @if (!row.Requirement.IsRequired) { <span class="badge text-bg-light">optional</span> }
+                    <div class="text-muted small">@row.Evaluation.FixSuggestion</div>
+                </li>
+            }
+            </ol>
+        </div>
+    }
+
+    <h2 class="h5 section-title">Requirement traceability</h2>
+    <div class="table-responsive">
+        <table class="table table-rg mb-0">
+            <thead>
+                <tr>
+                    <th style="min-width: 220px">Requirement</th>
+                    <th>Status</th>
+                    <th style="min-width: 200px">Evidence</th>
+                    <th>Confidence</th>
+                    <th>Risk</th>
+                    <th style="min-width: 220px">Fix suggestion</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                var e = row.Evaluation;
+                <tr>
+                    <td>
+                        @row.Requirement.RequirementText
+                        <div class="text-muted small">
+                            @row.Requirement.Category
+                            @if (row.Requirement.Points is decimal pts) { <span> · @pts.ToString("0.#") pts</span> }
+                            @if (!row.Requirement.IsRequired) { <span> · optional</span> }
+                        </div>
+                    </td>
+                    @if (e is null)
+                    {
+                        <td colspan="5" class="text-muted">Not evaluated for this version.</td>
+                    }
+                    else
+                    {
+                        <td><span class="badge-status status-@e.Status">@e.Status</span></td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(e.EvidenceText))
+                            {
+                                <div class="evidence-quote">“@e.EvidenceText”</div>
+                            }
+                            else { <span class="text-muted small">No evidence found</span> }
+                            @if (!string.IsNullOrWhiteSpace(e.Feedback))
+                            {
+                                <div class="small text-muted mt-1">@e.Feedback</div>
+                            }
+                        </td>
+                        <td>@((e.ConfidenceScore * 100).ToString("0"))%</td>
+                        <td><span class="risk-@e.RiskLevel">@e.RiskLevel</span></td>
+                        <td class="small">@e.FixSuggestion</td>
+                    }
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

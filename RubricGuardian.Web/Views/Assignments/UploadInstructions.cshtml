@@ -1,0 +1,32 @@
+@model Assignment
+@{ ViewData["Title"] = "Upload instructions"; }
+
+<div class="card card-white auth-card p-4">
+    <h1 class="h4 mb-1">Upload instructions or rubric</h1>
+    <p class="text-muted small mb-4">@Model.Title · @Model.Course?.CourseName</p>
+
+    <form method="post" action="/assignments/@Model.AssignmentId/upload-instructions" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+        <div class="mb-3">
+            <label class="form-label">Document type</label>
+            <select class="form-select" name="documentType">
+                <option value="Instructions">Assignment instructions</option>
+                <option value="Rubric">Grading rubric</option>
+            </select>
+        </div>
+        <div class="mb-4">
+            <label class="form-label">File (PDF, DOCX, TXT, or MD — max 20 MB)</label>
+            <input class="form-control" type="file" name="file" accept=".pdf,.docx,.txt,.md" required />
+        </div>
+
+        <div class="alert alert-light border small">
+            RubricGuardian reads the document and extracts each requirement exactly as stated.
+            Re-uploading the same document type replaces its previously extracted requirements.
+        </div>
+
+        <button class="btn btn-primary" type="submit">Upload and extract requirements</button>
+        <a class="btn btn-outline-secondary" href="/assignments/@Model.AssignmentId">Cancel</a>
+    </form>
+</div>
