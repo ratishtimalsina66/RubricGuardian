@@ -40,7 +40,7 @@
 else
 {
     <div class="table-responsive">
-        <table class="table table-rg mb-0">
+        <table class="table table-rg table-stack mb-0">
             <thead>
                 <tr>
                     <th>Assignment</th>
@@ -56,12 +56,12 @@ else
             @foreach (var a in Model.RecentAssignments)
             {
                 <tr>
-                    <td><a href="/assignments/@a.AssignmentId" class="fw-semibold text-decoration-none">@a.Title</a></td>
-                    <td class="text-muted">@a.CourseName</td>
-                    <td class="text-muted">@(a.DueDate?.ToString("MMM d, yyyy") ?? "—")</td>
-                    <td>@a.RequirementCount</td>
-                    <td>@(a.LatestVersion is int v ? $"v{v}" : "—")</td>
-                    <td>
+                    <td data-label="Assignment"><a href="/assignments/@a.AssignmentId" class="fw-semibold text-decoration-none">@a.Title</a></td>
+                    <td class="text-muted" data-label="Course">@a.CourseName</td>
+                    <td class="text-muted" data-label="Due">@(a.DueDate?.ToString("MMM d, yyyy") ?? "—")</td>
+                    <td data-label="Requirements">@a.RequirementCount</td>
+                    <td data-label="Latest version">@(a.LatestVersion is int v ? $"v{v}" : "—")</td>
+                    <td data-label="Readiness">
                         @if (a.ReadinessPercent is double p)
                         {
                             <div class="progress" style="height: 8px; min-width: 90px;">
@@ -71,7 +71,7 @@ else
                         }
                         else { <span class="text-muted">Not checked</span> }
                     </td>
-                    <td><a href="/assignments/@a.AssignmentId/evaluation" class="small">View report</a></td>
+                    <td class="stack-no-label"><a href="/assignments/@a.AssignmentId/evaluation" class="small">View report</a></td>
                 </tr>
             }
             </tbody>

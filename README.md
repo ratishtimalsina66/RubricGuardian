@@ -85,9 +85,13 @@ python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env               # add your API key / base URL / model
-export $(grep -v '^#' .env | xargs)   # Windows PowerShell: set them manually or use dotenv
 uvicorn main:app --port 8000
 ```
+
+`.env` is loaded automatically on startup (via `python-dotenv`) — no manual `export` needed.
+If `OPENAI_API_KEY` or `AI_SERVICE_API_KEY` is missing, the service still starts but logs a
+warning; the first call to `/extract-requirements` or `/evaluate` will fail with a clear
+error until a valid key is set.
 
 Verify: http://localhost:8000/health → `{"status":"ok"}`
 Interactive API docs: http://localhost:8000/docs
@@ -96,10 +100,29 @@ Interactive API docs: http://localhost:8000/docs
 `OPENAI_BASE_URL=http://localhost:11434/v1`, `OPENAI_API_KEY=not-needed`,
 `OPENAI_MODEL=llama3.1`.
 
+**Securing the service:** set `AI_SERVICE_API_KEY` in `.env` to a random shared secret, and
+set the same value as `AiService:ApiKey` in the .NET app (see below). Requests without a
+matching `X-API-Key` header get `401 Unauthorized`. Required before exposing port 8000
+beyond localhost — otherwise anyone reachable on the network can call the LLM-backed
+endpoints directly and consume your OpenAI quota.
+
 ### 3. Web app
+
+`appsettings.json` no longer holds real secrets — set them via `dotnet user-secrets`
+(auto-loaded in the Development environment) or environment variables (work in any
+environment; ASP.NET Core maps double-underscore names to nested config keys):
 
 ```bash
 cd RubricGuardian.Web
+dotnet user-secrets init
+dotnet user-secrets set "ConnectionStrings:Default" "Server=localhost,1433;Database=RubricGuardian;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+dotnet user-secrets set "AiService:ApiKey" "<same value as ai-service's AI_SERVICE_API_KEY>"
+
+# Equivalent environment-variable overrides (e.g. for CI/containers, or when
+# running outside the Development environment where user-secrets isn't auto-loaded):
+#   ConnectionStrings__Default="Server=...;Password=...;"
+#   AiService__ApiKey="<same shared secret>"
+
 dotnet run
 ```
 
@@ -110,6 +133,20 @@ Open the printed URL (e.g. https://localhost:5001). Sign in with the seeded demo
 
 The demo account already contains one course, one assignment, an extracted rubric, and a
 version-1 submission with a full readiness report — so you can see every screen immediately.
+
+## Accounts & privacy
+
+RubricGuardian is multi-user. Each person registers their own account, and everything
+they create — courses, assignments, uploaded documents, submissions, evaluation
+reports — is private to them. Isolation is enforced server-side on every query
+(ownership is checked in SQL, not hidden in the UI), so one user can never see or
+modify another user's data, even by guessing URLs.
+
+- Register at `/register`, sign in at `/login`
+- Passwords are hashed with PBKDF2; auth uses secure HTTP-only cookies
+- `/account` is each user's personal space: update your display name, change your
+  password, and see your workspace stats
+- Demo account for quick exploration: `demo@rubricguardian.dev` / `Demo123!`
 
 ## Pages
 

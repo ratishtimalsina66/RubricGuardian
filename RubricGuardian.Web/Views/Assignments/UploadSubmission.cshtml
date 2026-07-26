@@ -18,16 +18,16 @@
             against all @Model.Requirements.Count requirement(s). Earlier versions stay available for comparison.
         </p>
 
-        <form method="post" action="/assignments/@Model.AssignmentId/upload-submission" enctype="multipart/form-data">
+        <form method="post" action="/assignments/@Model.AssignmentId/upload-submission" enctype="multipart/form-data" data-slow-submit>
             @Html.AntiForgeryToken()
             <div asp-validation-summary="All" class="text-danger small mb-2"></div>
             <div class="mb-4">
-                <label class="form-label">Submission file (PDF, DOCX, TXT, or MD — max 20 MB)</label>
-                <input class="form-control" type="file" name="file" accept=".pdf,.docx,.txt,.md" required />
+                <label class="form-label" for="file">Submission file (PDF, DOCX, TXT, or MD — max 20 MB)</label>
+                <input class="form-control" type="file" id="file" name="file" accept=".pdf,.docx,.txt,.md" required />
             </div>
-            <button class="btn btn-primary" type="submit">Upload and run check</button>
+            <button class="btn btn-primary" type="submit" data-submit-button data-loading-text="Checking your submission…">Upload and run check</button>
             <a class="btn btn-outline-secondary" href="/assignments/@Model.AssignmentId">Cancel</a>
         </form>
-        <p class="text-muted small mt-3 mb-0">Checking usually takes 15–60 seconds depending on document length.</p>
+        <p class="text-muted small mt-3 mb-0">Checking can take anywhere from 15 seconds to a couple of minutes, depending on the AI provider and document length.</p>
     }
 </div>

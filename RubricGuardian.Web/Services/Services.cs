@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -16,7 +17,7 @@ public interface IPasswordHasher
 
 public class Pbkdf2PasswordHasher : IPasswordHasher
 {
-    private const int SaltSize = 16, KeySize = 32, Iterations = 100_000;
+    private const int SaltSize = 16, KeySize = 32, Iterations = 600_000;
 
     public string Hash(string password)
     {
@@ -99,6 +100,25 @@ public record EvaluationResultDto(
     [property: JsonPropertyName("feedback")] string Feedback,
     [property: JsonPropertyName("fix_suggestion")] string FixSuggestion);
 
+/// <summary>
+/// Thrown when the AI service returned an HTTP response but with a non-2xx status
+/// (e.g. a 502 because its OPENAI_API_KEY is invalid, or a 429 rate limit). Distinct
+/// from <see cref="HttpRequestException"/>, which now only means the AI service could
+/// not be reached at all (no response was ever received).
+/// </summary>
+public class AiServiceException : Exception
+{
+    public HttpStatusCode StatusCode { get; }
+    public string? Detail { get; }
+
+    public AiServiceException(HttpStatusCode statusCode, string? detail)
+        : base($"AI service returned {(int)statusCode}: {detail ?? "(no detail)"}")
+    {
+        StatusCode = statusCode;
+        Detail = detail;
+    }
+}
+
 public interface IAiServiceClient
 {
     Task<string> ExtractTextAsync(Stream file, string fileName, CancellationToken ct = default);
@@ -113,13 +133,26 @@ public class AiServiceClient : IAiServiceClient
 
     public AiServiceClient(HttpClient http) => _http = http;
 
+    private static async Task EnsureSuccessOrThrowAsync(HttpResponseMessage resp, CancellationToken ct)
+    {
+        if (resp.IsSuccessStatusCode) return;
+        string? detail = null;
+        try
+        {
+            var payload = await resp.Content.ReadFromJsonAsync<JsonElement>(Json, ct);
+            if (payload.TryGetProperty("detail", out var d)) detail = d.GetString();
+        }
+        catch { /* body wasn't JSON, or had no `detail` field */ }
+        throw new AiServiceException(resp.StatusCode, detail);
+    }
+
     public async Task<string> ExtractTextAsync(Stream file, string fileName, CancellationToken ct = default)
     {
         using var form = new MultipartFormDataContent();
         var fileContent = new StreamContent(file);
         form.Add(fileContent, "file", fileName);
         var resp = await _http.PostAsync("/extract-text", form, ct);
-        resp.EnsureSuccessStatusCode();
+        await EnsureSuccessOrThrowAsync(resp, ct);
         var payload = await resp.Content.ReadFromJsonAsync<JsonElement>(Json, ct);
         return payload.GetProperty("text").GetString() ?? "";
     }
@@ -128,7 +161,7 @@ public class AiServiceClient : IAiServiceClient
     {
         var resp = await _http.PostAsJsonAsync("/extract-requirements",
             new { text = documentText, document_type = documentType }, Json, ct);
-        resp.EnsureSuccessStatusCode();
+        await EnsureSuccessOrThrowAsync(resp, ct);
         var payload = await resp.Content.ReadFromJsonAsync<JsonElement>(Json, ct);
         return payload.GetProperty("requirements").Deserialize<List<ExtractedRequirementDto>>(Json) ?? new();
     }
@@ -137,7 +170,7 @@ public class AiServiceClient : IAiServiceClient
     {
         var resp = await _http.PostAsJsonAsync("/evaluate",
             new { requirements, submission_text = submissionText }, Json, ct);
-        resp.EnsureSuccessStatusCode();
+        await EnsureSuccessOrThrowAsync(resp, ct);
         var payload = await resp.Content.ReadFromJsonAsync<JsonElement>(Json, ct);
         return payload.GetProperty("evaluations").Deserialize<List<EvaluationResultDto>>(Json) ?? new();
     }

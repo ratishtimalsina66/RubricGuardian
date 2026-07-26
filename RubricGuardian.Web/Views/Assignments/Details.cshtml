@@ -87,13 +87,21 @@
         }
         else
         {
+            var seenTypes = new HashSet<DocumentType>();
             <div class="card p-3">
                 <ul class="list-unstyled mb-0">
                 @foreach (var d in Model.Documents)
                 {
-                    <li class="d-flex justify-content-between border-bottom py-2">
-                        <span class="text-truncate me-2">@d.FileName</span>
-                        <span class="badge text-bg-light">@d.DocumentType</span>
+                    var isSuperseded = d.DocumentType != DocumentType.Submission && !seenTypes.Add(d.DocumentType);
+                    <li class="d-flex justify-content-between align-items-center border-bottom py-2 @(isSuperseded ? "opacity-50" : "")">
+                        <div class="text-truncate me-2">
+                            <div class="text-truncate">@d.FileName</div>
+                            <div class="text-muted small">@d.UploadedAt.ToString("MMM d, h:mm tt")</div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center flex-shrink-0">
+                            @if (isSuperseded) { <span class="badge text-bg-light">superseded</span> }
+                            <span class="badge text-bg-light">@d.DocumentType</span>
+                        </div>
                     </li>
                 }
                 </ul>

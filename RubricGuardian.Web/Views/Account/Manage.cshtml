@@ -1,0 +1,72 @@
+@model AccountViewModel
+@{ ViewData["Title"] = "My account"; }
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 mb-0">My account</h1>
+        <p class="text-muted mb-0">Your profile, password, and workspace at a glance.</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4">
+        <div class="card stat-card p-3">
+            <div class="stat-value">@Model.CourseCount</div>
+            <div class="stat-label">Courses</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="card stat-card p-3">
+            <div class="stat-value">@Model.AssignmentCount</div>
+            <div class="stat-label">Assignments</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="card stat-card p-3">
+            <div class="stat-value">@Model.SubmissionCount</div>
+            <div class="stat-label">Submissions checked</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-6">
+        <h2 class="h5 section-title">Profile</h2>
+        <div class="card p-4">
+            <p class="mb-1"><span class="form-label d-block">Email</span> <span class="mono">@Model.Email</span></p>
+            <p class="text-muted small mb-4">Member since @Model.CreatedAt.ToString("MMMM yyyy")</p>
+
+            <form method="post" action="/account/profile">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <label class="form-label" for="FullName">Display name</label>
+                    <input class="form-control" id="FullName" name="FullName" value="@Model.FullName" maxlength="150" required />
+                </div>
+                <button class="btn btn-primary" type="submit">Save name</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <h2 class="h5 section-title">Change password</h2>
+        <div class="card p-4">
+            <form method="post" action="/account/password">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <label class="form-label" for="CurrentPassword">Current password</label>
+                    <input class="form-control" type="password" id="CurrentPassword" name="CurrentPassword" autocomplete="current-password" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="NewPassword">New password</label>
+                    <input class="form-control" type="password" id="NewPassword" name="NewPassword" autocomplete="new-password" minlength="8" required />
+                    <div class="form-text">At least 8 characters.</div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label" for="ConfirmNewPassword">Confirm new password</label>
+                    <input class="form-control" type="password" id="ConfirmNewPassword" name="ConfirmNewPassword" autocomplete="new-password" required />
+                </div>
+                <button class="btn btn-primary" type="submit">Change password</button>
+            </form>
+        </div>
+    </div>
+</div>

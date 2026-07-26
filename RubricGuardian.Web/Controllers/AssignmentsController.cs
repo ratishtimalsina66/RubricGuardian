@@ -16,10 +16,11 @@ public class AssignmentsController : AppControllerBase
 
     private readonly AppDbContext _db;
     private readonly AssignmentWorkflowService _workflow;
+    private readonly ILogger<AssignmentsController> _log;
 
-    public AssignmentsController(AppDbContext db, AssignmentWorkflowService workflow)
+    public AssignmentsController(AppDbContext db, AssignmentWorkflowService workflow, ILogger<AssignmentsController> log)
     {
-        _db = db; _workflow = workflow;
+        _db = db; _workflow = workflow; _log = log;
     }
 
     // ----------------------------------------------------------------- create
@@ -113,9 +114,15 @@ public class AssignmentsController : AppControllerBase
             var count = await _workflow.IngestInstructionDocumentAsync(id, file!, type);
             TempData["Success"] = $"{type} uploaded. {count} requirement(s) extracted.";
         }
-        catch (HttpRequestException)
+        catch (AiServiceException ex)
         {
-            TempData["Error"] = "The AI service is unreachable. The file was not processed - check that the FastAPI service is running.";
+            _log.LogError(ex, "AI service call failed: {StatusCode} {Detail}", ex.StatusCode, ex.Detail);
+            TempData["Error"] = AiServiceErrorMessages.For(ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _log.LogError(ex, "Could not reach the AI service");
+            TempData["Error"] = "The AI service is unreachable. Check that the FastAPI service is running.";
         }
         return Redirect($"/assignments/{id}");
     }
@@ -158,9 +165,16 @@ public class AssignmentsController : AppControllerBase
             TempData["Success"] = $"Version {submission.VersionNumber} uploaded and evaluated.";
             return Redirect($"/assignments/{id}/evaluation?version={submission.VersionNumber}");
         }
-        catch (HttpRequestException)
+        catch (AiServiceException ex)
         {
-            TempData["Error"] = "The AI service is unreachable. Check that the FastAPI service is running, then try again.";
+            _log.LogError(ex, "AI service call failed: {StatusCode} {Detail}", ex.StatusCode, ex.Detail);
+            TempData["Error"] = AiServiceErrorMessages.For(ex);
+            return Redirect($"/assignments/{id}");
+        }
+        catch (HttpRequestException ex)
+        {
+            _log.LogError(ex, "Could not reach the AI service");
+            TempData["Error"] = "The AI service is unreachable. Check that the FastAPI service is running.";
             return Redirect($"/assignments/{id}");
         }
     }
@@ -218,8 +232,14 @@ public class AssignmentsController : AppControllerBase
             await _workflow.ReevaluateAsync(submissionId);
             TempData["Success"] = $"Version {submission.VersionNumber} re-evaluated.";
         }
-        catch (HttpRequestException)
+        catch (AiServiceException ex)
         {
+            _log.LogError(ex, "AI service call failed: {StatusCode} {Detail}", ex.StatusCode, ex.Detail);
+            TempData["Error"] = AiServiceErrorMessages.For(ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            _log.LogError(ex, "Could not reach the AI service");
             TempData["Error"] = "The AI service is unreachable. Check that the FastAPI service is running.";
         }
         return Redirect($"/assignments/{id}/evaluation?version={submission.VersionNumber}");

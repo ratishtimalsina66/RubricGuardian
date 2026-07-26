@@ -12,6 +12,7 @@ import logging
 import os
 import re
 
+import openai
 from openai import OpenAI
 
 from schemas import EvaluationResult, ExtractedRequirement, RequirementInput
@@ -21,6 +22,7 @@ log = logging.getLogger("rubricguardian.llm")
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 SUBMISSION_CHAR_LIMIT = 60_000   # per evaluation call; long docs are truncated for the MVP
 EVAL_BATCH_SIZE = 8              # requirements evaluated per LLM call
+DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 _client: OpenAI | None = None
 
@@ -28,9 +30,14 @@ _client: OpenAI | None = None
 def _get_client() -> OpenAI:
     global _client
     if _client is None:
+        # Resolve the default ourselves rather than passing base_url=None: the openai SDK
+        # falls back to os.environ["OPENAI_BASE_URL"] internally when None is passed, and an
+        # *empty string* (as set by `.env`'s OPENAI_BASE_URL= line via load_dotenv) satisfies
+        # that lookup without triggering the SDK's own "unset -> use the official endpoint"
+        # fallback, producing a base URL with no scheme.
         _client = OpenAI(
             api_key=os.getenv("OPENAI_API_KEY", "not-set"),
-            base_url=os.getenv("OPENAI_BASE_URL") or None,
+            base_url=os.getenv("OPENAI_BASE_URL") or DEFAULT_BASE_URL,
         )
     return _client
 
@@ -206,3 +213,36 @@ def _parse_json(content: str) -> dict:
         if match:
             return json.loads(match.group(0))
         raise
+
+
+def translate_llm_error(exc: Exception) -> tuple[int, str]:
+    """Map an exception raised while calling the LLM to (http_status_code, detail_message)."""
+    if isinstance(exc, openai.AuthenticationError):
+        return 502, (
+            "The AI provider rejected the request: the configured OPENAI_API_KEY "
+            "is invalid, expired, or missing. Check the ai-service environment configuration."
+        )
+    if isinstance(exc, openai.RateLimitError):
+        if getattr(exc, "code", None) == "insufficient_quota":
+            return 429, (
+                "The AI provider account has run out of quota/credits. "
+                "Check the OpenAI plan and billing details for this API key."
+            )
+        return 429, "The AI provider rate-limited this request. Wait a moment and try again."
+    if isinstance(exc, openai.APITimeoutError):  # must be checked before APIConnectionError (subclass)
+        return 504, "The AI provider did not respond in time. Try again in a moment."
+    if isinstance(exc, openai.APIConnectionError):
+        return 502, (
+            "Could not reach the AI provider. Check ai-service's network connectivity "
+            "and the OPENAI_BASE_URL configuration."
+        )
+    if isinstance(exc, json.JSONDecodeError):
+        return 502, "The AI provider returned a response that could not be parsed as JSON. Please try again."
+    if isinstance(exc, openai.OpenAIError):
+        # Catches SDK-level errors that occur before any HTTP call is even made, e.g. the
+        # client constructor rejecting a missing/empty OPENAI_API_KEY outright.
+        return 502, (
+            "The AI provider rejected the request: the configured OPENAI_API_KEY "
+            "is invalid, expired, or missing. Check the ai-service environment configuration."
+        )
+    return 500, "An unexpected error occurred while calling the AI model."

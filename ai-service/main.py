@@ -8,11 +8,18 @@ Endpoints:
 Run:  uvicorn main:app --port 8000
 """
 import logging
+import os
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from dotenv import load_dotenv
 
+load_dotenv()  # populate os.environ from ai-service/.env before any project module reads env vars
+
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+
+from auth import verify_api_key
 from extraction import extract_text_from_upload
-from llm import evaluate_requirements, extract_requirements
+from llm import evaluate_requirements, extract_requirements, translate_llm_error
 from schemas import (
     EvaluateRequest,
     EvaluateResponse,
@@ -24,7 +31,26 @@ from schemas import (
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("rubricguardian.ai")
 
-app = FastAPI(title="RubricGuardian AI Service", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    key = os.getenv("OPENAI_API_KEY", "not-set")
+    if not key or key == "not-set":
+        log.warning(
+            "OPENAI_API_KEY is not set (or is the placeholder 'not-set'). Calls to "
+            "/extract-requirements and /evaluate will fail with a 502 until a valid key "
+            "is configured - see ai-service/.env.example."
+        )
+    if not os.getenv("AI_SERVICE_API_KEY"):
+        log.warning(
+            "AI_SERVICE_API_KEY is not set. /extract-text, /extract-requirements, and "
+            "/evaluate are UNAUTHENTICATED. Do not expose port 8000 beyond localhost "
+            "until this is configured."
+        )
+    yield
+
+
+app = FastAPI(title="RubricGuardian AI Service", version="1.0.0", lifespan=lifespan)
 
 
 @app.get("/health")
@@ -32,7 +58,7 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-@app.post("/extract-text", response_model=ExtractTextResponse)
+@app.post("/extract-text", response_model=ExtractTextResponse, dependencies=[Depends(verify_api_key)])
 async def extract_text(file: UploadFile = File(...)) -> ExtractTextResponse:
     """Step 1/4 of the workflow: turn an uploaded document into plain text."""
     try:
@@ -46,7 +72,11 @@ async def extract_text(file: UploadFile = File(...)) -> ExtractTextResponse:
     return ExtractTextResponse(text=text)
 
 
-@app.post("/extract-requirements", response_model=ExtractRequirementsResponse)
+@app.post(
+    "/extract-requirements",
+    response_model=ExtractRequirementsResponse,
+    dependencies=[Depends(verify_api_key)],
+)
 def extract_requirements_endpoint(req: ExtractRequirementsRequest) -> ExtractRequirementsResponse:
     """Steps 2-3: convert rubric/instructions text into structured requirements.
 
@@ -58,11 +88,12 @@ def extract_requirements_endpoint(req: ExtractRequirementsRequest) -> ExtractReq
         requirements = extract_requirements(req.text, req.document_type)
     except Exception as exc:  # noqa: BLE001
         log.exception("Requirement extraction failed")
-        raise HTTPException(status_code=502, detail="The AI model call failed.") from exc
+        status, detail = translate_llm_error(exc)
+        raise HTTPException(status_code=status, detail=detail) from exc
     return ExtractRequirementsResponse(requirements=requirements)
 
 
-@app.post("/evaluate", response_model=EvaluateResponse)
+@app.post("/evaluate", response_model=EvaluateResponse, dependencies=[Depends(verify_api_key)])
 def evaluate_endpoint(req: EvaluateRequest) -> EvaluateResponse:
     """Steps 5-7: match evidence, assign status, generate feedback + fix suggestion."""
     if not req.requirements:
@@ -73,5 +104,6 @@ def evaluate_endpoint(req: EvaluateRequest) -> EvaluateResponse:
         evaluations = evaluate_requirements(req.requirements, req.submission_text)
     except Exception as exc:  # noqa: BLE001
         log.exception("Evaluation failed")
-        raise HTTPException(status_code=502, detail="The AI model call failed.") from exc
+        status, detail = translate_llm_error(exc)
+        raise HTTPException(status_code=status, detail=detail) from exc
     return EvaluateResponse(evaluations=evaluations)

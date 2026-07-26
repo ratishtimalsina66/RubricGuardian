@@ -5,20 +5,20 @@
     <h1 class="h4 mb-1">Upload instructions or rubric</h1>
     <p class="text-muted small mb-4">@Model.Title · @Model.Course?.CourseName</p>
 
-    <form method="post" action="/assignments/@Model.AssignmentId/upload-instructions" enctype="multipart/form-data">
+    <form method="post" action="/assignments/@Model.AssignmentId/upload-instructions" enctype="multipart/form-data" data-slow-submit>
         @Html.AntiForgeryToken()
         <div asp-validation-summary="All" class="text-danger small mb-2"></div>
 
         <div class="mb-3">
-            <label class="form-label">Document type</label>
-            <select class="form-select" name="documentType">
+            <label class="form-label" for="documentType">Document type</label>
+            <select class="form-select" id="documentType" name="documentType">
                 <option value="Instructions">Assignment instructions</option>
                 <option value="Rubric">Grading rubric</option>
             </select>
         </div>
         <div class="mb-4">
-            <label class="form-label">File (PDF, DOCX, TXT, or MD — max 20 MB)</label>
-            <input class="form-control" type="file" name="file" accept=".pdf,.docx,.txt,.md" required />
+            <label class="form-label" for="file">File (PDF, DOCX, TXT, or MD — max 20 MB)</label>
+            <input class="form-control" type="file" id="file" name="file" accept=".pdf,.docx,.txt,.md" required />
         </div>
 
         <div class="alert alert-light border small">
@@ -26,7 +26,8 @@
             Re-uploading the same document type replaces its previously extracted requirements.
         </div>
 
-        <button class="btn btn-primary" type="submit">Upload and extract requirements</button>
+        <button class="btn btn-primary" type="submit" data-submit-button data-loading-text="Reading document and extracting requirements…">Upload and extract requirements</button>
         <a class="btn btn-outline-secondary" href="/assignments/@Model.AssignmentId">Cancel</a>
+        <p class="text-muted small mt-3 mb-0">Extraction can take anywhere from a few seconds to a couple of minutes, depending on the AI provider and document length.</p>
     </form>
 </div>

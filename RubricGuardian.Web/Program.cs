@@ -23,11 +23,16 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<AssignmentWorkflowService>();
+builder.Services.AddMemoryCache();
 
-builder.Services.AddHttpClient<IAiServiceClient, AiServiceClient>(client =>
+builder.Services.AddHttpClient<IAiServiceClient, AiServiceClient>((sp, client) =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["AiService:BaseUrl"] ?? "http://localhost:8000");
+    var config = sp.GetRequiredService<IConfiguration>();
+    client.BaseAddress = new Uri(config["AiService:BaseUrl"] ?? "http://localhost:8000");
     client.Timeout = TimeSpan.FromMinutes(5); // LLM calls can be slow
+    var apiKey = config["AiService:ApiKey"];
+    if (!string.IsNullOrEmpty(apiKey))
+        client.DefaultRequestHeaders.Add("X-API-Key", apiKey);
 });
 
 var app = builder.Build();
@@ -38,6 +43,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// SecurePolicy left at default (SameAsRequest): forcing Always would break local HTTP
+// dev without also adding forwarded-headers middleware for a reverse-proxy deployment.
+app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();

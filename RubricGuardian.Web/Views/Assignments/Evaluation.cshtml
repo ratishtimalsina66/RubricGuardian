@@ -33,10 +33,10 @@
         }
         @if (Model.Submission is not null)
         {
-            <form method="post" action="/assignments/@Model.Assignment.AssignmentId/evaluation/rerun" class="m-0">
+            <form method="post" action="/assignments/@Model.Assignment.AssignmentId/evaluation/rerun" class="m-0" data-slow-submit>
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="submissionId" value="@Model.Submission.SubmissionId" />
-                <button class="btn btn-outline-secondary btn-sm" type="submit">Re-run check</button>
+                <button class="btn btn-outline-secondary btn-sm" type="submit" data-submit-button data-loading-text="Re-running check…">Re-run check</button>
             </form>
         }
         <a class="btn btn-primary btn-sm" href="/assignments/@Model.Assignment.AssignmentId/upload-submission">Upload revised version</a>
@@ -65,9 +65,9 @@ else
         <div class="col-12 col-md-8 col-lg-9">
             <div class="row g-3 h-100">
                 <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100"><div class="stat-value text-success">@Model.CompleteCount</div><div class="stat-label">Complete</div></div></div>
-                <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100"><div class="stat-value" style="color:#b45309">@Model.PartialCount</div><div class="stat-label">Partial</div></div></div>
+                <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100"><div class="stat-value" style="color:var(--warn)">@Model.PartialCount</div><div class="stat-label">Partial</div></div></div>
                 <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100"><div class="stat-value text-danger">@Model.MissingCount</div><div class="stat-label">Missing</div></div></div>
-                <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100"><div class="stat-value text-secondary">@Model.UnclearCount</div><div class="stat-label">Unclear</div></div></div>
+                <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100"><div class="stat-value" style="color:var(--dim)">@Model.UnclearCount</div><div class="stat-label">Unclear</div></div></div>
             </div>
         </div>
     </div>
@@ -76,7 +76,7 @@ else
     {
         <h2 class="h5 section-title">Fix checklist <span class="text-muted small fw-normal">(highest risk first)</span></h2>
         <div class="card p-3 mb-4">
-            <ol class="mb-0">
+            <ol class="mb-0 fix-list">
             @foreach (var row in fixList)
             {
                 <li class="mb-2">
@@ -92,7 +92,7 @@ else
 
     <h2 class="h5 section-title">Requirement traceability</h2>
     <div class="table-responsive">
-        <table class="table table-rg mb-0">
+        <table class="table table-rg table-stack mb-0">
             <thead>
                 <tr>
                     <th style="min-width: 220px">Requirement</th>
@@ -108,7 +108,7 @@ else
             {
                 var e = row.Evaluation;
                 <tr>
-                    <td>
+                    <td data-label="Requirement">
                         @row.Requirement.RequirementText
                         <div class="text-muted small">
                             @row.Requirement.Category
@@ -118,12 +118,12 @@ else
                     </td>
                     @if (e is null)
                     {
-                        <td colspan="5" class="text-muted">Not evaluated for this version.</td>
+                        <td colspan="5" class="text-muted stack-no-label">Not evaluated for this version.</td>
                     }
                     else
                     {
-                        <td><span class="badge-status status-@e.Status">@e.Status</span></td>
-                        <td>
+                        <td data-label="Status"><span class="badge-status status-@e.Status">@e.Status</span></td>
+                        <td data-label="Evidence">
                             @if (!string.IsNullOrWhiteSpace(e.EvidenceText))
                             {
                                 <div class="evidence-quote">“@e.EvidenceText”</div>
@@ -134,9 +134,9 @@ else
                                 <div class="small text-muted mt-1">@e.Feedback</div>
                             }
                         </td>
-                        <td>@((e.ConfidenceScore * 100).ToString("0"))%</td>
-                        <td><span class="risk-@e.RiskLevel">@e.RiskLevel</span></td>
-                        <td class="small">@e.FixSuggestion</td>
+                        <td data-label="Confidence">@((e.ConfidenceScore * 100).ToString("0"))%</td>
+                        <td data-label="Risk"><span class="risk-@e.RiskLevel">@e.RiskLevel</span></td>
+                        <td data-label="Fix suggestion" class="small">@e.FixSuggestion</td>
                     }
                 </tr>
             }

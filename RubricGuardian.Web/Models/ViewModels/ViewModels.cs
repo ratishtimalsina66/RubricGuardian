@@ -97,3 +97,26 @@ public class EvaluationDashboardViewModel
         }
     }
 }
+
+public class AccountViewModel
+{
+    public string FullName { get; set; } = "";
+    public string Email { get; set; } = "";
+    public DateTime CreatedAt { get; set; }
+    public int CourseCount { get; set; }
+    public int AssignmentCount { get; set; }
+    public int SubmissionCount { get; set; }
+}
+
+public class UpdateProfileViewModel
+{
+    [Required, MaxLength(150)] public string FullName { get; set; } = "";
+}
+
+public class ChangePasswordViewModel
+{
+    [Required, DataType(DataType.Password)] public string CurrentPassword { get; set; } = "";
+    [Required, MinLength(8), DataType(DataType.Password)] public string NewPassword { get; set; } = "";
+    [Required, DataType(DataType.Password), Compare(nameof(NewPassword), ErrorMessage = "Passwords do not match.")]
+    public string ConfirmNewPassword { get; set; } = "";
+}
