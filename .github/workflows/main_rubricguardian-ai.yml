@@ -20,16 +20,15 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: '3.12'
-    
-    - name: Build using AppService-Build
-      uses: azure/appservice-build@v2
-      with:
-        platform: python
-        platform-version: '3.12'
-    
+
+    # No local build step: Azure's own Oryx build runs server-side on deploy
+    # (SCM_DO_BUILD_DURING_DEPLOYMENT=true is set on the app) - the legacy
+    # azure/appservice-build action's bundled Oryx image is incompatible with
+    # Python 3.12's glibc requirements, so we skip it and just ship the source.
     - name: 'Deploy to Azure Web App'
       uses: azure/webapps-deploy@v2
-      with: 
+      with:
         app-name: 'rubricguardian-ai'
         slot-name: 'production'
         publish-profile: ${{ secrets.AzureAppService_PublishProfile_63f495d1aa5f40f899cfa25cc3d41193 }}
+        package: ai-service
