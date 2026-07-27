@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using RubricGuardian.Web.Data;
 using RubricGuardian.Web.Services;
@@ -37,14 +38,22 @@ builder.Services.AddHttpClient<IAiServiceClient, AiServiceClient>((sp, client) =
 
 var app = builder.Build();
 
+// Azure App Service (and any reverse proxy) terminates TLS at the edge and forwards plain
+// HTTP internally - without this, UseHttpsRedirection() below can't tell the original
+// request was HTTPS and would redirect-loop. Must be the first middleware in the pipeline.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
 
-// SecurePolicy left at default (SameAsRequest): forcing Always would break local HTTP
-// dev without also adding forwarded-headers middleware for a reverse-proxy deployment.
+// SecurePolicy left at default (SameAsRequest): safe now that ForwardedHeaders lets the
+// app correctly see HTTPS requests forwarded from Azure/a reverse proxy as HTTPS.
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
